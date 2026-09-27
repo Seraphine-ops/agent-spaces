@@ -74,7 +74,7 @@
   "author": "Agent Spaces contributors",
   "repository": {
     "type": "git",
-    "url": "https://github.com/Seraphine-ops/agent-spaces-windows-codexonly-browseronly.git"
+    "url": "https://github.com/Seraphine-ops/agent-spaces.git"
   },
-  "homepage": "https://github.com/Seraphine-ops/agent-spaces-windows-codexonly-browseronly#readme"
+  "homepage": "https://github.com/Seraphine-ops/agent-spaces#readme"
 }

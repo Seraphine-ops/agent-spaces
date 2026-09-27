@@ -29,8 +29,8 @@ This release supports **Windows x64 and macOS (Apple Silicon and Intel)**, **Cod
 Clone the repository and run the setup launcher:
 
 ```powershell
-git clone https://github.com/Seraphine-ops/agent-spaces-windows-codexonly-browseronly.git
-cd agent-spaces-windows-codexonly-browseronly
+git clone https://github.com/Seraphine-ops/agent-spaces.git
+cd agent-spaces
 & '.\Setup Agent Spaces.cmd'
 ```
 
@@ -41,8 +41,8 @@ Alternatively, download the source ZIP, extract it, and double-click **Setup Age
 You need Node.js 22 or later (the Codex desktop app’s bundled Node.js also works). Clone or download the repository, then run:
 
 ```sh
-git clone https://github.com/Seraphine-ops/agent-spaces-windows-codexonly-browseronly.git
-cd agent-spaces-windows-codexonly-browseronly
+git clone https://github.com/Seraphine-ops/agent-spaces.git
+cd agent-spaces
 ./setup-macos.sh
 ```
 
