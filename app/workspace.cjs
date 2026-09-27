@@ -10,7 +10,7 @@ class Workspace{
  changed(){this.onChange?.();}
  save(){for(const t of this.tabs.values()){const url=t.view.webContents.getURL();if(t.historyURL!==url){t.historyURL=url;if(url!=='about:blank')this.history?.add(t,{action:'visited',engine:this.engine,actor:this.restoring?'system':t.owner?'agent':'human',url});}}fs.writeFileSync(this.file,JSON.stringify([...this.tabs.values()].map(t=>({id:t.id,url:t.view.webContents.getURL(),title:t.title,customName:t.customName||null,task:t.task||null})),null,2));}
  async restore(){this.restoring=true;let saved=[];try{saved=JSON.parse(fs.readFileSync(this.file,'utf8'))}catch{} for(const t of saved.slice(0,16)){try{await this.create(null,t.url,t.id);const restored=this.tab(t.id);restored.customName=t.customName||null;restored.task=t.task||null}catch{}}this.restoring=false;this.save();}
- register(label){const id=randomUUID();this.clients.set(id,{id,label:String(label||'Codex agent').slice(0,80),lastSeen:Date.now()});this.log('Agent connected');return {clientId:id,capabilities:{browser:true,desktop:false}};}
+ register(label){const id=randomUUID();this.clients.set(id,{id,label:String(label||'Agent').slice(0,80),lastSeen:Date.now()});this.log('Agent connected');return {clientId:id,capabilities:{browser:true,desktop:false}};}
  client(id){const c=this.clients.get(id);if(!c)throw Error('Agent session expired. Reconnect.');c.lastSeen=Date.now();return c;}
  expire(){for(const [id,c] of this.clients)if(Date.now()-c.lastSeen>60000&&![...this.tabs.values()].some(t=>t.owner===id&&t.busy))this.disconnect(id);}
  disconnect(id){this.clients.delete(id);for(const t of this.tabs.values())if(t.owner===id){t.owner=null;t.paused=false;}this.changed();}

@@ -4,9 +4,9 @@
 
 I built Agent Spaces because I wanted agents to have their own home on my laptop. Their browser work interrupted mine, and their activity felt scattered across chats, tabs and apps. I wanted somewhere I could see what they were doing, which accounts they were using, and what needed my attention, separate from my personal workspace.
 
-Agent Spaces has a built-in browser that connects directly to Codex. Once connected, Codex uses it automatically for browser tasks. You keep prompting in the same Codex task, with its conversation context intact. Crucially, agents don’t need to take over your screen or mouse: they work in their own browser tabs while you use your computer normally.
+Agent Spaces has a built-in browser that connects directly to Codex and Claude Code. Once connected, your agent uses it automatically for browser tasks. You keep prompting in the same Codex task or Claude Code session, with its conversation context intact. Crucially, agents don’t need to take over your screen or mouse: they work in their own browser tabs while you use your computer normally.
 
-Here’s what it adds around Codex:
+Here’s what it adds around your agent:
 
 - **Separation:** agents browse independently without interrupting your personal workspace.
 - **Accounts:** agents create accounts or use yours, saving and reusing logins across tasks.
@@ -22,9 +22,11 @@ The GitHub account hosting this project was created through Agent Spaces using t
 
 Some agent products offer overlapping features. Agent Spaces brings these capabilities together in one workspace you can see and manage.
 
-This release supports **Windows x64, Codex, and browser tasks**. I also have prototypes that extend Agent Spaces to desktop apps running inside a virtual machine, so agents can work there without taking over your personal desktop. I’m working toward macOS and Linux support, alongside connections to other agent harnesses, including Claude. Those capabilities are not included in this release.
+This release supports **Windows x64 and macOS (Apple Silicon and Intel)**, **Codex and Claude Code**, and **browser tasks**. Setup connects whichever of Codex and Claude Code you have installed, or both. I also have prototypes that extend Agent Spaces to desktop apps running inside a virtual machine, so agents can work there without taking over your personal desktop. I’m working toward Linux support. Those capabilities are not included in this release.
 
-To get started, clone the repository and run the setup launcher:
+### Windows setup
+
+Clone the repository and run the setup launcher:
 
 ```powershell
 git clone https://github.com/Seraphine-ops/agent-spaces-windows-codexonly-browseronly.git
@@ -32,11 +34,32 @@ cd agent-spaces-windows-codexonly-browseronly
 & '.\Setup Agent Spaces.cmd'
 ```
 
-Alternatively, download the source ZIP, extract it, and double-click **Setup Agent Spaces.cmd**. Setup installs missing prerequisites, builds the browser workspace and opens Agent Spaces. Windows may ask for installation permission. On first launch, Agent Spaces registers its Codex connector and browser preference. Restart Codex so it loads the tools.
+Alternatively, download the source ZIP, extract it, and double-click **Setup Agent Spaces.cmd**. Setup installs missing prerequisites, builds the browser workspace and opens Agent Spaces. Windows may ask for installation permission. On first launch, Agent Spaces registers its browser connector and browser preference with Codex and Claude Code, whichever are installed. Restart Codex, or start a new Claude Code session, so it loads the tools. If neither is installed, setup installs the Codex CLI.
 
-**Take control** pauses agent input for one tab. **Return to agent** lets a task that is still running and waiting continue from the updated page. **Pause browser agents** pauses the entire browser workspace, including new tasks, until you resume it. Closing the window keeps Agent Spaces running in the system tray; **Quit runtime** stops it.
+### macOS setup
 
-Saved credentials are encrypted locally using Windows-backed storage. Connected agents can retrieve them, and information requested by an agent may enter its model provider’s context. Tabs within the same browser engine share website sessions; they are not separate account containers. Agent Spaces does not restrict Codex’s other computer tools. Some websites and verification methods still require human help.
+You need Node.js 22 or later (the Codex desktop app’s bundled Node.js also works). Clone or download the repository, then run:
+
+```sh
+git clone https://github.com/Seraphine-ops/agent-spaces-windows-codexonly-browseronly.git
+cd agent-spaces-windows-codexonly-browseronly
+./setup-macos.sh
+```
+
+Setup installs the locked dependencies, builds a local **Agent Spaces Browser.app**, and connects Codex and/or Claude Code. Restart Codex, or start a new Claude Code session, to load the tools. The browser opens when an agent starts its first browser task. Its profile and encrypted account data live in `~/Library/Application Support/Agent Spaces`. The WebView2 engine is Windows-only; macOS uses the embedded Chromium engine.
+
+To reconnect later (for example after installing Claude Code), run `node tools/connect-agents.mjs` from the project folder.
+
+### What connecting changes
+
+- **Codex:** adds the `agent-browser` MCP server with `codex mcp add`, and a marked section in `~/.codex/AGENTS.md` that makes Agent Spaces the default browser.
+- **Claude Code:** adds the `agent-browser` MCP server to `~/.claude.json` (user scope, so every project sees it) and the same marked section in `~/.claude/CLAUDE.md`. Existing settings and instructions are kept, and a backup is written before any change.
+
+Turning off **Use AS for browser tasks** in settings removes the marked sections and leaves the connector installed.
+
+**Take control** pauses agent input for one tab. **Return to agent** lets a task that is still running and waiting continue from the updated page. **Pause browser agents** pauses the entire browser workspace, including new tasks, until you resume it. Closing the window keeps Agent Spaces running in the system tray (menu bar on macOS); **Quit runtime** stops it.
+
+Saved credentials are encrypted locally using Windows-backed storage on Windows and the macOS Keychain on Mac. Logins you complete yourself, including single sign-on logins that return you to another site (for example Microsoft or Google sign-in for a university or work account), are offered for saving once they succeed. Connected agents can retrieve them, and information requested by an agent may enter its model provider’s context. Tabs within the same browser engine share website sessions; they are not separate account containers. Agent Spaces does not restrict your agent’s other computer tools. Some websites and verification methods still require human help.
 
 For technical details, see [SECURITY.md](SECURITY.md), [PRIVACY.md](PRIVACY.md), [SECURITY-REVIEW.md](SECURITY-REVIEW.md), [CONTRIBUTING.md](CONTRIBUTING.md) and [ARCHITECTURE.md](ARCHITECTURE.md).
 

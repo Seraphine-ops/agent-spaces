@@ -21,8 +21,11 @@ class BrowserAdapter {
   this.session=session.fromPartition('persist:agent-browser');
   this.session.setPermissionRequestHandler((_wc,_permission,callback)=>callback(false));
   this.session.setPermissionCheckHandler(()=>false);
-  this.session.on('will-download',(_event,item)=>{
-   item.setSavePath(path.join(downloadDir,`${Date.now()}-${path.basename(item.getFilename())}`));
+  this.downloads=new Map();
+  this.session.on('will-download',(_event,item,wc)=>{
+   const savePath=path.join(downloadDir,`${Date.now()}-${path.basename(item.getFilename())}`);
+   item.setSavePath(savePath);
+   if(wc)this.downloads.set(wc.id,{filename:item.getFilename(),savePath,at:Date.now()});
   });
  }
  async create(url='about:blank'){
@@ -91,7 +94,15 @@ class BrowserAdapter {
  }
  async screenshot(view){const {data}=await this.command(view,'Page.captureScreenshot',{format:'png',captureBeyondViewport:false});return {image:data};}
  async act(view,action,args){
-  if(action==='navigate'){await view.webContents.loadURL(webURL(args.url));return this.snapshot(view)}
+  if(action==='navigate'){
+   // A URL that starts a download aborts the page load; report the download instead of failing the tab.
+   const started=Date.now();
+   try{await view.webContents.loadURL(webURL(args.url));}
+   catch(e){
+    // The load can reject before will-download fires, so give the download a moment to register.
+    for(let i=0;i<20;i++){const d=this.downloads.get(view.webContents.id);if(d&&d.at>=started)return {download:{filename:d.filename,savedTo:d.savePath}};await new Promise(r=>setTimeout(r,100));}
+    throw e;}
+   return this.snapshot(view)}
   if(action==='snapshot')return this.snapshot(view);
   if(action==='screenshot')return this.screenshot(view);
   if(action==='click')return this.click(view,args);

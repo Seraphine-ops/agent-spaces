@@ -28,3 +28,22 @@ test('email-only records update one saved account and retain default',()=>{
  assert.throws(()=>a.save({site:origin,username:'x',password:'secret',status:'pending'}));
  assert.throws(()=>a.save({site:origin,email:'person@example.test',password:'',status:'created'}));
 });
+test('single sign-on login saves when the tab returns signed in to the relying site',()=>{
+ const idp='https://login.idp.test',rp='https://app.test';const {capture:c,saved}=setup();
+ const at=(o,m,id='a')=>c.observe(id,o,{version:1,origin:o,documentId:'d-'+o+m.kind,path:'/',...m},{task:'Fixture task',taskId:id});
+ at(idp,{kind:'candidate',email:'person@example.test',intent:'login',submitted:true});
+ at(idp,{kind:'candidate',password:'fixture-only-secret',intent:'login',submitted:true});
+ at('https://mfa.idp.test',{kind:'form'});
+ at(rp,{kind:'landed'});
+ assert.equal(saved.length,1);assert.equal(saved[0].site,idp);assert.equal(saved[0].usedFor,rp);assert.equal(saved[0].email,'person@example.test');assert.equal(saved[0].source,'automatic-sso');assert.equal(c.pending.size,0);
+});
+test('single sign-on does not save unsubmitted, rejected, signup or other-tab attempts',()=>{
+ const idp='https://login.idp.test',rp='https://app.test';
+ const run=(steps)=>{const {capture:c,saved}=setup();for(const [id,o,m] of steps)c.observe(id,o,{version:1,origin:o,documentId:'d'+Math.random(),path:'/',...m},{taskId:id});return saved.length;};
+ const cand=(more={})=>['a',idp,{kind:'candidate',email:'person@example.test',password:'fixture-only-secret',intent:'login',submitted:true,...more}];
+ assert.equal(run([cand({submitted:false}),['a',rp,{kind:'landed'}]]),0);
+ assert.equal(run([cand(),['a',idp,{kind:'rejected'}],['a',rp,{kind:'landed'}]]),0);
+ assert.equal(run([cand({intent:'signup'}),['a',rp,{kind:'landed'}]]),0);
+ assert.equal(run([cand(),['b',rp,{kind:'landed'}]]),0);
+ assert.equal(run([cand(),['a',rp,{kind:'candidate',email:'x@example.test',password:'other',intent:'login'}],['a','https://third.test',{kind:'landed'}]]),0);
+});

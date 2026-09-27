@@ -11,13 +11,13 @@ The default directory is `%LOCALAPPDATA%\Agent Spaces Browser`:
 | tabs.json | Restored tabs, including titles and full URLs; may contain sensitive paths/query strings |
 | browser-history.json | Searchable tab/action/time/domain activity; no typed field contents or URL query strings |
 | downloads | Files explicitly downloaded inside the browser |
-| settings.json | Engine, pause and Codex preference settings |
+| settings.json | Engine, pause and agent-app browser preference settings |
 | runtime.json | Temporary local broker port and authentication token |
 | launch.json | Installed executable location used by the MCP launcher |
 | login-diagnostics.jsonl | Rotating WebView2 status diagnostics; URL queries and arbitrary path segments are redacted |
 
 Passwords pending capture/consent are held in application memory and expire; they are not logged as activity. Explicit Copy actions place the selected value on the system clipboard, which other software or clipboard history may access. The app does not automatically clear the clipboard.
 
-Websites receive normal browser requests. Codex and its provider receive whatever observations, screenshots or credentials its tools request; their own retention policies apply. AS is not a way to keep data out of your model provider's context.
+Websites receive normal browser requests. Codex, Claude Code and their providers receive whatever observations, screenshots or credentials its tools request; their own retention policies apply. AS is not a way to keep data out of your model provider's context.
 
 Delete accounts in Accounts; delete tab history through the tab confirmation or History. Deleting an account from AS does not sign out website sessions or delete the remote account. For complete local removal, quit AS and delete its data directory yourself after saving anything needed. Uninstalling is not advertised as erasing browser/account data.

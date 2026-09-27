@@ -33,12 +33,16 @@ if ($LASTEXITCODE -ne 0) { throw 'WebView2 build failed. See the error above.' }
 & '.\app\webview2-host\publish\AgentSpaces.WebViewHost.exe' --check-runtime
 if ($LASTEXITCODE -ne 0) { Install-Prerequisite 'Microsoft.EdgeWebView2Runtime' 'Microsoft Edge WebView2 Evergreen runtime' }
 
-if (-not (Get-Command codex -ErrorAction SilentlyContinue)) {
-    Write-Host 'Installing the official Codex CLI for connector registration...'
+$hasClaude = (Test-Path (Join-Path $env:USERPROFILE '.claude.json')) -or (Test-Path (Join-Path $env:USERPROFILE '.claude')) -or (Get-Command claude -ErrorAction SilentlyContinue)
+if (-not (Get-Command codex -ErrorAction SilentlyContinue) -and -not $hasClaude) {
+    Write-Host 'Neither Codex nor Claude Code was found. Installing the official Codex CLI for connector registration...'
+    Write-Host 'To use Claude Code instead, install Claude Code and rerun setup.ps1.'
     & npm.cmd install -g @openai/codex
     if ($LASTEXITCODE -ne 0) { throw 'Codex CLI installation failed. See README.md.' }
     Refresh-TaskPath
 }
-Write-Host 'Setup complete. Sign in to Codex if needed, then restart Codex after AS connects.'
+Write-Host 'Connecting agent apps...'
+& node tools\connect-agents.mjs
+Write-Host 'Setup complete. Restart Codex, or start a new Claude Code session, after AS connects.'
 Write-Host 'If WebView2 reports a missing browser runtime, install Microsoft Edge WebView2 Evergreen from the link in README.md.'
 if (-not $NoLaunch) { & npm.cmd start }
