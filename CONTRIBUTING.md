@@ -1,8 +1,8 @@
 # Contributing
 
-Use Windows x64, Node.js 22+ and .NET 8 SDK. Run `npm ci` and `npm run build:webview2` before integration tests. Run `npm test` for pure unit checks, `npm run test:all` for both browser engines, and `npm run dist` for a Windows installer.
+On Windows, use Windows x64, Node.js 22+ and .NET 8 SDK. Run `npm ci` and `npm run build:webview2` before integration tests. Run `npm test` for pure unit checks, `npm run test:all` for both browser engines, and `npm run dist` for a Windows installer. On macOS, use Node.js 22+, run `./setup-macos.sh` (or `npm ci` then `npm run dist:mac`), and `npm test` for unit checks; the WebView2 engine and its tests are Windows-only.
 
-Tests must set AGENT_SPACES_TEST=1 and a unique AGENT_SPACES_DATA temporary directory. That disables Codex registration and keeps real accounts and sessions out of fixtures. Do not run tests against an existing user's data directory. Use synthetic credentials and local fixture sites, never real login flows.
+Tests must set AGENT_SPACES_TEST=1 and a unique AGENT_SPACES_DATA temporary directory. That disables Codex and Claude Code registration and keeps real accounts and sessions out of fixtures. Do not run tests against an existing user's data directory. Use synthetic credentials and local fixture sites, never real login flows.
 
 Keep ownership and human-control checks in the shared workspace. Do not add a personal-browser or host mouse fallback. Preserve default account semantics, popup linkage, encrypted storage and manual save consent. Browser-only changes should not add VM dependencies.
 

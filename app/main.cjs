@@ -14,7 +14,7 @@ const {Accounts}=require('./accounts.cjs');
 const {CredentialCapture}=require('./credential-capture.cjs');
 let credentialCapture,captureError=null;
 
-const {setup:setupCodex}=require('./codex-setup.cjs');
+const {setup:setupCodex,installed:codexInstalled}=require('./codex-setup.cjs');const {setup:setupClaude,installed:claudeInstalled}=require('./claude-setup.cjs');
 
 const {HelpAlerts}=require('./help-alerts.cjs');let helpAlerts;
 const {AccountConsent}=require('./account-consent.cjs');
@@ -28,9 +28,20 @@ const accountRequests=new Map();let pendingClose=null;let accounts,section='work
 const settingsFile=path.join(data,'settings.json');let preferences={codexBrowserDefault:true,};try{preferences={...preferences,...JSON.parse(fs.readFileSync(settingsFile,'utf8'))}}catch{}
 
 const backend=process.env.AGENT_SPACES_BACKEND||preferences.browserBackend||(fs.existsSync(path.join(__dirname,'webview2-host/publish/AgentSpaces.WebViewHost.exe'))?'webview2':'electron');
-let codexStatus={enabled:preferences.codexBrowserDefault,busy:true,message:'Setting up Codex…'};
+let codexStatus={enabled:preferences.codexBrowserDefault,busy:true,message:'Connecting agent apps…'};
 let setupRunning=false;
-async function configureCodex(enabled){if(setupRunning)return codexStatus;setupRunning=true;codexStatus={...codexStatus,busy:true};emit();try{const result=await setupCodex({root,enabled,});preferences.codexBrowserDefault=enabled;fs.writeFileSync(settingsFile,JSON.stringify(preferences));codexStatus={...result,busy:false};}catch(e){codexStatus={enabled:false,busy:false,error:true,message:e.message};}setupRunning=false;emit();return codexStatus;}
+// Connect every supported agent app that is installed: Codex and/or Claude Code.
+async function configureAgents(enabled){
+ if(setupRunning)return codexStatus;setupRunning=true;codexStatus={...codexStatus,busy:true};emit();
+ const connectorRoot=process.env.AGENT_SPACES_CONNECTOR_ROOT||root;const apps=[];const errors=[];
+ const targets=[['Codex',codexInstalled,setupCodex],['Claude Code',claudeInstalled,setupClaude]];
+ for(const [name,isInstalled,run] of targets){if(!isInstalled())continue;try{await run({root:connectorRoot,enabled});apps.push(name);}catch(e){errors.push(`${name}: ${e.message}`);}}
+ if(apps.length){preferences.codexBrowserDefault=enabled;fs.writeFileSync(settingsFile,JSON.stringify(preferences));}
+ if(!apps.length&&!errors.length)codexStatus={enabled:false,busy:false,error:true,apps,message:'No agent app was found. Install Codex or Claude Code, then retry setup.'};
+ else if(errors.length&&!apps.length)codexStatus={enabled:false,busy:false,error:true,apps,message:errors.join(' ')};
+ else codexStatus={enabled,busy:false,apps,error:false,message:(enabled?`Connected to ${apps.join(' and ')}. Restart it or start a new session to load the tools.`:'Browser preference disabled. The connector remains available.')+(errors.length?' '+errors.join(' '):'')};
+ setupRunning=false;emit();return codexStatus;
+}
 function attentionItems(){if(!workspace)return [];const items=(accountConsent?.list()||[]).map(r=>({id:'save:'+r.id,title:'Save this login?',message:'Choose whether to save your successful login in Accounts.',section:'accounts'}));for(const t of workspace.tabs.values())if(t.owner&&(t.error||(t.needsHuman&&t.paused)))items.push({id:'tab:'+t.id,tabId:t.id,title:t.error?'An agent needs help':'Manual action required',message:t.error?'An action stopped. Open the tab to review it.':'Complete the manual step, then click Return to agent.'});for(const r of accountRequests.values())if(!r.choice&&!r.cancelled&&workspace.tabs.get(r.tabId)?.owner===r.clientId)items.push({id:'account:'+r.id,title:'Choose an account',message:'An agent is waiting for you to select a login.',section:'accounts'});return items;}
 let notifiedAttention=new Set();
 function openAttention(id){const item=attentionItems().find(a=>a.id===id);if(!item)return;section=item.section||'workspace';if(item.tabId)selected=item.tabId;win.show();if(win.isMinimized())win.restore();win.focus();emit();}
@@ -97,7 +108,7 @@ async function rpc(raw){
   return {accounts:accounts.list().filter(r=>accountMatches(r.site,site)).map(({username,email,isDefault})=>({username,email:email||'',isDefault:!!isDefault}))};
  }
  if(a.op==='get_account'){
-  const t=workspace.tab(a.tabId);if(t.owner!==a.clientId||t.paused||workspace.paused)throw Error('Account access requires your own active tab');accounts.check();const site=new URL(webURL(a.site)).origin;const selection=selectAccount(accounts.list().filter(r=>accountMatches(r.site,site)),a.username);const matches=selection.matches;if(!matches.length)return {status:'not_found',next:'This existing account is not saved. Request human control so the user can log in directly. Use browser_request_human then browser_wait_for_resume. After success the app offers Save to Accounts; never ask for a password in chat.'};
+  const t=workspace.tab(a.tabId);if(t.owner!==a.clientId||t.paused||workspace.paused)throw Error('Account access requires your own active tab');accounts.check();const site=new URL(webURL(a.site)).origin;const selection=selectAccount(accounts.list().filter(r=>accountMatches(r.site,site)||(r.usedFor&&accountMatches(r.usedFor,site))),a.username);const matches=selection.matches;if(!matches.length)return {status:'not_found',next:'This existing account is not saved. Request human control so the user can log in directly. Use browser_request_human then browser_wait_for_resume. After success the app offers Save to Accounts; never ask for a password in chat.'};
   const prior=accountRequests.get(a.clientId+':'+a.tabId+':'+site+':'+(a.username||'').trim().toLowerCase());if(prior?.cancelled)return {status:'cancelled',next:'Account selection was cancelled. Ask the user before trying another account.'};let chosen=selection.chosen;if(!chosen){const key=a.clientId+':'+a.tabId+':'+site+':'+(a.username||'').trim().toLowerCase();let r=accountRequests.get(key);if(!r){r={id:crypto.randomUUID(),clientId:a.clientId,tabId:a.tabId,site,task:t.task||workspace.client(a.clientId).label,options:matches.map(m=>({id:m.id,username:m.username,email:m.email||'',label:m.label||m.task}))};accountRequests.set(key,r);section='accounts';emit();if(process.env.AGENT_SPACES_TEST!=='1')win.show();}
    if(r.cancelled)return {status:'cancelled',next:'The user cancelled account selection. Do not log in.'};if(!r.choice)return {status:'waiting_for_user',next:'Ask the user to choose in Agent Spaces Accounts. Call browser_wait_for_account, then retry browser_get_account. Do not guess or end the task.'};chosen=matches.find(m=>m.id===r.choice);if(!chosen)throw Error('Selected account is no longer available');}
   return {status:'ready',site:chosen.site,username:chosen.username,email:chosen.email||'',...accounts.reveal(chosen.id)};
@@ -161,7 +172,7 @@ async function ui(action,a={}){
  if(action==='deleteAccount'){const account=accounts.list().find(r=>r.id===a.id);if(!account)throw Error('Account not found');pendingClose={kind:'account',id:account.id,title:account.username+' · '+account.site};emit();return;}
  if(action==='revealAccount')return accounts.reveal(a.id);
  if(action==='copyAccountField')return copyAccountField(accounts,clipboard,a);
- if(action==='codexSetup'){if(process.env.AGENT_SPACES_TEST==='1')throw Error('Setup is disabled in test profiles');return configureCodex(a.enabled!==false);}
+ if(action==='codexSetup'){if(process.env.AGENT_SPACES_TEST==='1')throw Error('Setup is disabled in test profiles');return configureAgents(a.enabled!==false);}
  if(action==='collapse'){collapsed=!collapsed;emit();return;}
  if(action==='new'){section='workspace';const r=await attachCreated(null,a.url?webURL(a.url):'about:blank');selected=r.tabId;emit();return r;}
  if(action==='select'){section='workspace';if(a.id)workspace.tab(a.id);selected=a.id||null;emit();return;}
@@ -199,10 +210,14 @@ async function ui(action,a={}){
  throw Error('Unknown UI action');
 }
 app.on('second-instance',()=>{win?.show();win?.focus();});
+app.on('activate',()=>{if(win){win.show();win.focus();}});
 app.whenReady().then(async()=>{
  Menu.setApplicationMenu(null);
- if(process.platform!=='win32')throw Error('This beta requires Windows.');
- if(process.env.AGENT_SPACES_TEST!=='1')fs.writeFileSync(path.join(data,'launch.json'),JSON.stringify({executable:process.execPath,args:app.isPackaged?[]:[root],root}));
+ if(!['win32','darwin'].includes(process.platform))throw Error('Agent Spaces supports macOS and Windows.');
+ if(process.env.AGENT_SPACES_TEST!=='1'){
+  const connectorRoot=process.env.AGENT_SPACES_CONNECTOR_ROOT||root;
+  fs.writeFileSync(path.join(data,'launch.json'),JSON.stringify({executable:process.execPath,args:app.isPackaged?[connectorRoot]:[root],root:connectorRoot}));
+ }
 
  accounts=new Accounts(path.join(data,'accounts.enc'),safeStorage);
  accountConsent=new AccountConsent({accounts,onChange:emit});
@@ -242,8 +257,9 @@ app.whenReady().then(async()=>{
  });
  await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
  const pixels=Buffer.alloc(32*32*4);const line=(x,y,w,h)=>{for(let a=x;a<x+w;a++)for(let b=y;b<y+h;b++){const i=(b*32+a)*4;pixels[i]=220;pixels[i+1]=220;pixels[i+2]=224;pixels[i+3]=255;}};for(const x of [2,19]){line(x,8,11,2);line(x,19,11,2);line(x,8,2,13);line(x+9,8,2,13);line(x+5,21,2,3);line(x+2,24,8,2);}line(15,4,1,24);
- tray=new Tray(nativeImage.createFromPath(path.join(__dirname,'assets','agent-spaces-workspace.ico')));tray.setToolTip('Agent Spaces. Browser workspace');
- tray.setContextMenu(Menu.buildFromTemplate([{label:'Open Agent Spaces',click:()=>{win.show();win.focus();}},{label:'Quit Agent Spaces',click:()=>app.quit()}]));tray.on('double-click',()=>win.show());
+ const trayImage=nativeImage.createFromPath(path.join(__dirname,process.platform==='darwin'?'assets/agent-spaces.png':'assets/agent-spaces-workspace.ico'));
+ tray=new Tray(trayImage);if(process.platform==='darwin')tray.setImage(trayImage.resize({width:18,height:18}));tray.setToolTip('Agent Spaces. Browser workspace');
+ tray.setContextMenu(Menu.buildFromTemplate([{label:'Open Agent Spaces',click:()=>{win.show();win.focus();}},{label:'Quit Agent Spaces',click:()=>app.quit()}]));tray.on('click',()=>{win.show();win.focus()});tray.on('double-click',()=>win.show());
  win.on('focus',()=>win.flashFrame(false));
  win.on('resize',()=>{layout();emit()});win.on('close',event=>{if(!quitting){event.preventDefault();win.hide();}});
  await win.webContents.loadFile(path.join(__dirname,'ui','index.html'));if(process.env.AGENT_SPACES_TEST!=='1')win.show();else if(process.env.AGENT_SPACES_RENDER_TEST==='1'){// Hosted CI needs an on-screen surface; local tests stay off the user's desktop.
@@ -252,6 +268,6 @@ app.whenReady().then(async()=>{
  fs.writeFileSync(runtimeFile,JSON.stringify({port:server.address().port,token,pid:process.pid}),{mode:0o600});
  setInterval(()=>{workspace.expire();credentialCapture.sweep();},15000).unref();
  setInterval(emit,3000).unref();
- if(process.env.AGENT_SPACES_TEST!=='1')configureCodex(preferences.codexBrowserDefault);else codexStatus={enabled:false,busy:false,message:'Test profile. Codex settings unchanged.'};
+ if(process.env.AGENT_SPACES_TEST!=='1')configureAgents(preferences.codexBrowserDefault);else codexStatus={enabled:false,busy:false,message:'Test profile. Agent app settings unchanged.'};
 }).catch(e=>{console.error(e);app.quit();});
 app.on('before-quit',()=>{quitting=true;try{workspace?.save();helpAlerts?.close();server?.close();adapter?.dispose?.();fs.unlinkSync(runtimeFile)}catch{}});

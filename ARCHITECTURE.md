@@ -1,7 +1,7 @@
 # Browser architecture
 
 ```text
-Codex (agent)
+Codex or Claude Code (agent)
   -> stdio MCP: browser-mcp.mjs
   -> authenticated loopback broker: app/main.cjs
   -> Workspace ownership / pause checks
@@ -21,4 +21,4 @@ Popup events retain the initiating task, parent tab and input ownership. Agents 
 
 `browser-history.cjs` records redacted action metadata. `help-alerts.cjs` displays branded, non-activating assistance windows. The UI is local HTML/CSS/JavaScript with a restricted preload and no remote scripts.
 
-Windows-only packaging is deliberate. The desktop/VM modules and their tools were excluded from this repository. Future desktop support should be a separate capability boundary rather than reintroducing host-specific project paths into the browser core.
+Packaging targets Windows (NSIS installer, Electron or WebView2 engine) and macOS (local app bundle built by `setup-macos.sh`, Electron engine). `codex-setup.cjs` and `claude-setup.cjs` register the connector with each installed agent app; `tools/connect-agents.mjs` runs both from setup scripts. The desktop/VM modules and their tools were excluded from this repository. Future desktop support should be a separate capability boundary rather than reintroducing host-specific project paths into the browser core.

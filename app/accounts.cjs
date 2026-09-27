@@ -1,7 +1,7 @@
 const {accountMatches}=require('./site-identity.cjs');
 const fs=require('node:fs');const {randomUUID}=require('node:crypto');
 class Accounts {
- constructor(file,storage){this.file=file;this.storage=storage;this.rows=[];this.error=null;try{if(fs.existsSync(file))this.rows=JSON.parse(storage.decryptString(fs.readFileSync(file)));const confirmed=this.rows.filter(r=>r.status==='created');if(confirmed.length!==this.rows.length){this.check();this.persist(confirmed);this.rows=confirmed;}}catch{this.error='Saved accounts could not be unlocked. Sign in with the Windows account that saved them.';}}
+ constructor(file,storage){this.file=file;this.storage=storage;this.rows=[];this.error=null;try{if(fs.existsSync(file))this.rows=JSON.parse(storage.decryptString(fs.readFileSync(file)));const confirmed=this.rows.filter(r=>r.status==='created');if(confirmed.length!==this.rows.length){this.check();this.persist(confirmed);this.rows=confirmed;}}catch{this.error=process.platform==='darwin'?'Saved accounts could not be unlocked on this Mac user account.':'Saved accounts could not be unlocked. Sign in with the Windows account that saved them.';}}
  check(){if(this.error)throw Error(this.error);if(!this.storage.isEncryptionAvailable()||this.storage.getSelectedStorageBackend?.()==='basic_text')throw Error('Secure account storage is unavailable. No credentials were saved.');}
  list(){return this.rows.map(({password,...r})=>({...r,hasPassword:!!password}));}
  persist(rows){const encrypted=this.storage.encryptString(JSON.stringify(rows));fs.writeFileSync(this.file+'.tmp',encrypted,{mode:0o600});fs.renameSync(this.file+'.tmp',this.file);}

@@ -18,7 +18,19 @@ class CredentialCapture {
    if(matches.length===1)return this.observe(matches[0][0],source,message);
   }
   const key=id;let attempt=this.pending.get(key);
-  if(attempt&&(attempt.origin!==origin||this.now()-attempt.at>this.maxAge)){this.forget(key);attempt=null;}
+  if(attempt&&this.now()-attempt.at>this.maxAge){this.forget(key);attempt=null;}
+  if(attempt&&attempt.origin!==origin){
+   // Single sign-on: the password was submitted at an identity provider and the same tab has
+   // returned to the site that asked for the login. A signed-in page there confirms the login.
+   const ready=attempt.submitted&&attempt.password&&(attempt.username||attempt.email)&&attempt.intent==='login';
+   if(ready&&(message.kind==='landed'||(message.kind==='authenticated'&&['github-user-login','authenticated-identity','logout-control'].includes(message.evidence)))){
+    const result=this.save({site:attempt.origin,usedFor:origin,username:attempt.username||attempt.email,email:attempt.email||'',password:attempt.password,status:'created',source:'automatic-sso',captureIntent:'login',...attempt.context});
+    this.forget(key);this.onSaved(result);return result;
+   }
+   // Keep a submitted attempt through redirect and second-factor pages on other sites.
+   if(ready&&message.kind!=='candidate'&&message.kind!=='cancelled')return;
+   this.forget(key);attempt=null;
+  }
   if(message.kind==='cancelled'){this.forget(key);return;}
   if(message.kind==='rejected'||(message.kind==='form'&&attempt?.documentId!==message.documentId)){if(attempt)attempt.submitted=false;return;}
   if(message.kind==='candidate'){

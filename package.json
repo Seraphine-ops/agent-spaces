@@ -2,7 +2,7 @@
   "name": "agent-spaces-browser",
   "version": "0.2.0",
   "private": true,
-  "description": "A persistent browser home for agents, with Codex integration, accounts and human handoff.",
+  "description": "A persistent browser home for agents, with Codex and Claude Code integration, accounts and human handoff.",
   "type": "module",
   "main": "app/main.cjs",
   "license": "MIT",
@@ -10,6 +10,7 @@
     "node": ">=22"
   },
   "os": [
+    "darwin",
     "win32"
   ],
   "scripts": {
@@ -23,7 +24,8 @@
     "test:all": "npm test && npm run test:browser && npm run test:popups && npm run test:accounts && npm run test:manual && npm run test:security",
     "dist": "electron-builder --win nsis --x64 --publish never",
     "postinstall": "node node_modules/electron/install.js",
-    "test:security": "node tests/security-integration.mjs"
+    "test:security": "node tests/security-integration.mjs",
+    "dist:mac": "electron-builder --mac dir --publish never"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.0.0",
@@ -38,6 +40,7 @@
     "appId": "AgentSpaces.Browser",
     "productName": "Agent Spaces Browser",
     "asar": false,
+    "electronDist": "node_modules/electron/dist",
     "directories": {
       "output": "dist"
     },
@@ -56,6 +59,10 @@
       "icon": "app/assets/agent-spaces-workspace.ico",
       "target": "nsis"
     },
+    "mac": {
+      "category": "public.app-category.productivity",
+      "target": ["dir"]
+    },
     "nsis": {
       "oneClick": false,
       "perMachine": false,
@@ -67,7 +74,7 @@
   "author": "Agent Spaces contributors",
   "repository": {
     "type": "git",
-    "url": "https://github.com/Seraphine-ops/agent-spaces-windows-codexonly-browseronly.git"
+    "url": "https://github.com/Seraphine-ops/agent-spaces.git"
   },
-  "homepage": "https://github.com/Seraphine-ops/agent-spaces-windows-codexonly-browseronly#readme"
+  "homepage": "https://github.com/Seraphine-ops/agent-spaces#readme"
 }

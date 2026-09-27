@@ -29,6 +29,15 @@ function credentialObserver(send) {
   if(identity){const id=identity.content||identity.getAttribute('data-current-user-login')||identity.getAttribute('data-current-user-email');if(id)return {...(id.includes('@')?{email:id}:{username:id}),evidence:'authenticated-identity'};}
   return {evidence:'logout-control'};
  };
+ // After single sign-on the browser returns to a different site. Report a page that has
+ // settled with no login form or sign-in prompt, so the provider's login can be confirmed.
+ const settled=()=>{
+  if([...document.querySelectorAll('input')].some(e=>visible(e)&&['password','username','email'].includes(kind(e))))return false;
+  if(/verify (?:your )?(?:email|account)|check your (?:email|inbox)|verification (?:code|email)|enter the code|complete (?:your )?verification|(?:incorrect|invalid|wrong) (?:username|email|password)|authentication failed|access denied/i.test((document.body?.innerText||'').slice(0,16000)))return false;
+  if(/\/(?:login|log-in|signin|sign-in|signup|sign-up|join|register|verify|verification|mfa|two-factor|saml|sso|oauth|authorize|callback)(?:[/?#-]|$)/i.test(location.pathname))return false;
+  if([...document.querySelectorAll('a,button,input[type=submit],[role=button]')].some(e=>visible(e)&&/^(?:log ?in|sign ?in)\b/i.test((e.innerText||e.value||'').trim())))return false;
+  return true;
+ };
  const emit=payload=>{try{send({version:1,origin:location.origin,path:location.pathname,documentId,...payload});}catch{}};
  const documentId=crypto.randomUUID();let last='',timer;
  function capture(submitted=false,target=null){
@@ -62,7 +71,7 @@ function credentialObserver(send) {
   if(/(?:continue|sign ?in|sign ?up|log ?in) with (?:google|apple|github|microsoft|facebook|sso)/i.test(text)){emit({kind:'cancelled'});return;}
   if(b.type==='submit'||/^(?:sign ?in|log ?in|sign ?up|create (?:an? )?account|join|register|continue|next|verify)(?:\b|$)/i.test(text))capture(true,b);
  },true);
- const start=()=>{if(inputs().some(e=>kind(e)==='password'&&visible(e)))emit({kind:'form'});check();new MutationObserver(()=>{clearTimeout(timer);timer=setTimeout(check,350);}).observe(document.documentElement,{childList:true,subtree:true});setInterval(check,1500);};
+ const start=()=>{if(inputs().some(e=>kind(e)==='password'&&visible(e)))emit({kind:'form'});check();setTimeout(()=>{if(settled())emit({kind:'landed'});},2500);new MutationObserver(()=>{clearTimeout(timer);timer=setTimeout(check,350);}).observe(document.documentElement,{childList:true,subtree:true});setInterval(check,1500);};
  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',start,{once:true});else start();
 }
 module.exports={credentialObserver};
