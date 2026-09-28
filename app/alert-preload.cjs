@@ -1,1 +1,5 @@
-const {contextBridge,ipcRenderer}=require('electron');contextBridge.exposeInMainWorld('helpAlert',{onShow:fn=>ipcRenderer.on('spaces:alert',(_e,v)=>fn(v)),act:action=>ipcRenderer.send('spaces:alert-action',action)});
+const { contextBridge, ipcRenderer } = require('electron');
+contextBridge.exposeInMainWorld('helpAlert', {
+  onShow: (fn) => ipcRenderer.on('spaces:alert', (_e, v) => fn(v)),
+  act: (action) => ipcRenderer.send('spaces:alert-action', action),
+});
