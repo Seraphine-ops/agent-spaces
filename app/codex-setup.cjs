@@ -1,6 +1,10 @@
-const fs=require('node:fs');const path=require('node:path');const os=require('node:os');const {execFile}=require('node:child_process');
-const BEGIN='<!-- agent-spaces:browser-default:start -->';const END='<!-- agent-spaces:browser-default:end -->';
-const BLOCK=`${BEGIN}
+const fs = require('node:fs');
+const path = require('node:path');
+const os = require('node:os');
+const { execFile } = require('node:child_process');
+const BEGIN = '<!-- agent-spaces:browser-default:start -->';
+const END = '<!-- agent-spaces:browser-default:end -->';
+const BLOCK = `${BEGIN}
 ## Agent Spaces workspace routing
 
 Use the agent-browser MCP tools in Agent Spaces for all opening, navigation, and interaction with browser tabs by default. Create a tab for each independent task, use its returned tab ID, and respect ownership and manual-control pauses. Pass this browser preference and the assigned tab ID to any delegated worker.
@@ -11,34 +15,144 @@ After an action that may open a new tab, inspect returned popups and use browser
 For account creation, call browser_record_account only after observing successful creation, with status created and the final accepted username and password. Never record rejected username attempts, failed signups, or incomplete verification. Keep credentials out of task labels and logs. Use browser_type_text after coordinate clicking fields inside cross-origin iframes.
 Do not open or operate a personal browser, host browser, or in-app browser as a fallback. If Agent Spaces or its tools are unavailable, explain that Agent Spaces must be opened or Codex restarted to load the connector. An explicit user request to use a different browser or an existing named tab takes precedence over this default. This preference does not grant authorization for external actions or override higher-priority instructions.
 ${END}`;
-function merge(text,enabled,instructions=BLOCK){const start=text.indexOf(BEGIN),end=text.indexOf(END);if((start<0)!==(end<0)||end<start)throw Error('The Agent Spaces instruction block is incomplete. Restore it before retrying.');const block=enabled?instructions:'';if(start>=0)return text.slice(0,start)+block+text.slice(end+END.length);return enabled?text+(text&&!text.endsWith('\n')?'\n':'')+block+'\n':text;}
-function executable(name){for(const dir of (process.env.PATH||'').split(path.delimiter)){const p=path.join(dir,name);if(fs.existsSync(p))return p;}return null;}
-function cliRunner(){
- const bundledCodex='/Applications/ChatGPT.app/Contents/Resources/codex';
- const codex=process.env.CODEX_CLI_PATH||(fs.existsSync(bundledCodex)?bundledCodex:null);
- const resources=codex?path.dirname(codex):'';
- const bundledNode=process.platform==='darwin'&&resources?path.join(resources,'cua_node','bin','node'):null;
- const node=process.env.AGENT_SPACES_NODE||executable(process.platform==='win32'?'node.exe':'node')||(bundledNode&&fs.existsSync(bundledNode)?bundledNode:null);
- if(!node)throw Error('Node.js 22 or later was not found. Install Node.js, then reopen Agent Spaces.');
- const js=path.join(process.env.APPDATA||'', 'npm','node_modules','@openai','codex','bin','codex.js');
- const binary=executable(process.platform==='win32'?'codex.exe':'codex')||(codex&&fs.existsSync(codex)?codex:null);
- const command=fs.existsSync(js)?node:binary;
- if(!command)throw Error('Codex CLI was not found. Install Codex CLI, then reopen Agent Spaces.');
- return {node,run:args=>new Promise((resolve,reject)=>execFile(command,fs.existsSync(js)?[js,...args]:args,{windowsHide:true,timeout:20000,maxBuffer:1024*1024},(e,out)=>e?reject(Error('Codex connector setup failed. Check that Codex CLI is installed and writable.')):resolve(out)))};
+function merge(text, enabled, instructions = BLOCK) {
+  const start = text.indexOf(BEGIN),
+    end = text.indexOf(END);
+  if (start < 0 !== end < 0 || end < start)
+    throw Error('The Agent Spaces instruction block is incomplete. Restore it before retrying.');
+  const block = enabled ? instructions : '';
+  if (start >= 0) return text.slice(0, start) + block + text.slice(end + END.length);
+  return enabled ? text + (text && !text.endsWith('\n') ? '\n' : '') + block + '\n' : text;
 }
-async function setup({root,enabled=true,codexHome=process.env.CODEX_HOME||path.join(os.homedir(),'.codex'),runner}={}){
- const override=path.join(codexHome,'AGENTS.override.md');const file=fs.existsSync(override)?override:path.join(codexHome,'AGENTS.md');
- let changed=false;
- if(enabled){const cli=runner||cliRunner();const args=[path.join(root,'browser-mcp.mjs')];let current;try{current=JSON.parse(await cli.run(['mcp','get','agent-browser','--json']))}catch{}
-  const dataDir=process.env.AGENT_SPACES_DATA;
-  if(current?.transport?.command!==cli.node||JSON.stringify(current?.transport?.args)!==JSON.stringify(args)||current.enabled===false||(dataDir&&current?.transport?.env?.AGENT_SPACES_DATA!==dataDir)){
-   await cli.run(['mcp','add','agent-browser',...(dataDir?['--env',`AGENT_SPACES_DATA=${dataDir}`]:[]),'--',cli.node,...args]);changed=true;
+function executable(name) {
+  for (const dir of (process.env.PATH || '').split(path.delimiter)) {
+    const p = path.join(dir, name);
+    if (fs.existsSync(p)) return p;
   }
- }
- fs.mkdirSync(codexHome,{recursive:true});const before=fs.existsSync(file)?fs.readFileSync(file,'utf8'):'';const after=merge(before,enabled);
- if(before!==after){if(fs.existsSync(file))fs.copyFileSync(file,file+'.agent-spaces-backup-'+Date.now());fs.writeFileSync(file,after);changed=true;}
- return {enabled,changed,instructionsFile:file,message:enabled?'Browser preference saved. Restart Codex if it is already open.':'Browser preference disabled. The connector remains available.'};
+  return null;
 }
-function writeInstructions({enabled=true,codexHome=process.env.CODEX_HOME||path.join(os.homedir(),'.codex')}={}){const override=path.join(codexHome,'AGENTS.override.md');const file=fs.existsSync(override)?override:path.join(codexHome,'AGENTS.md');const before=fs.existsSync(file)?fs.readFileSync(file,'utf8'):'';const after=merge(before,enabled);if(before!==after){fs.mkdirSync(codexHome,{recursive:true});if(fs.existsSync(file))fs.copyFileSync(file,file+'.agent-spaces-backup-'+Date.now());fs.writeFileSync(file,after);}return file;}
-function installed(){try{cliRunner();return true;}catch{return false;}}
-module.exports={setup,merge,BLOCK,writeInstructions,installed};
+function cliRunner() {
+  const bundledCodex = '/Applications/ChatGPT.app/Contents/Resources/codex';
+  const codex = process.env.CODEX_CLI_PATH || (fs.existsSync(bundledCodex) ? bundledCodex : null);
+  const resources = codex ? path.dirname(codex) : '';
+  const bundledNode =
+    process.platform === 'darwin' && resources
+      ? path.join(resources, 'cua_node', 'bin', 'node')
+      : null;
+  const node =
+    process.env.AGENT_SPACES_NODE ||
+    executable(process.platform === 'win32' ? 'node.exe' : 'node') ||
+    (bundledNode && fs.existsSync(bundledNode) ? bundledNode : null);
+  if (!node)
+    throw Error('Node.js 22 or later was not found. Install Node.js, then reopen Agent Spaces.');
+  const js = path.join(
+    process.env.APPDATA || '',
+    'npm',
+    'node_modules',
+    '@openai',
+    'codex',
+    'bin',
+    'codex.js',
+  );
+  const binary =
+    executable(process.platform === 'win32' ? 'codex.exe' : 'codex') ||
+    (codex && fs.existsSync(codex) ? codex : null);
+  const command = fs.existsSync(js) ? node : binary;
+  if (!command)
+    throw Error('Codex CLI was not found. Install Codex CLI, then reopen Agent Spaces.');
+  return {
+    node,
+    run: (args) =>
+      new Promise((resolve, reject) =>
+        execFile(
+          command,
+          fs.existsSync(js) ? [js, ...args] : args,
+          { windowsHide: true, timeout: 20000, maxBuffer: 1024 * 1024 },
+          (e, out) =>
+            e
+              ? reject(
+                  Error(
+                    'Codex connector setup failed. Check that Codex CLI is installed and writable.',
+                  ),
+                )
+              : resolve(out),
+        ),
+      ),
+  };
+}
+async function setup({
+  root,
+  enabled = true,
+  codexHome = process.env.CODEX_HOME || path.join(os.homedir(), '.codex'),
+  runner,
+} = {}) {
+  const override = path.join(codexHome, 'AGENTS.override.md');
+  const file = fs.existsSync(override) ? override : path.join(codexHome, 'AGENTS.md');
+  let changed = false;
+  if (enabled) {
+    const cli = runner || cliRunner();
+    const args = [path.join(root, 'browser-mcp.mjs')];
+    let current;
+    try {
+      current = JSON.parse(await cli.run(['mcp', 'get', 'agent-browser', '--json']));
+    } catch {}
+    const dataDir = process.env.AGENT_SPACES_DATA;
+    if (
+      current?.transport?.command !== cli.node ||
+      JSON.stringify(current?.transport?.args) !== JSON.stringify(args) ||
+      current.enabled === false ||
+      (dataDir && current?.transport?.env?.AGENT_SPACES_DATA !== dataDir)
+    ) {
+      await cli.run([
+        'mcp',
+        'add',
+        'agent-browser',
+        ...(dataDir ? ['--env', `AGENT_SPACES_DATA=${dataDir}`] : []),
+        '--',
+        cli.node,
+        ...args,
+      ]);
+      changed = true;
+    }
+  }
+  fs.mkdirSync(codexHome, { recursive: true });
+  const before = fs.existsSync(file) ? fs.readFileSync(file, 'utf8') : '';
+  const after = merge(before, enabled);
+  if (before !== after) {
+    if (fs.existsSync(file)) fs.copyFileSync(file, file + '.agent-spaces-backup-' + Date.now());
+    fs.writeFileSync(file, after);
+    changed = true;
+  }
+  return {
+    enabled,
+    changed,
+    instructionsFile: file,
+    message: enabled
+      ? 'Browser preference saved. Restart Codex if it is already open.'
+      : 'Browser preference disabled. The connector remains available.',
+  };
+}
+function writeInstructions({
+  enabled = true,
+  codexHome = process.env.CODEX_HOME || path.join(os.homedir(), '.codex'),
+} = {}) {
+  const override = path.join(codexHome, 'AGENTS.override.md');
+  const file = fs.existsSync(override) ? override : path.join(codexHome, 'AGENTS.md');
+  const before = fs.existsSync(file) ? fs.readFileSync(file, 'utf8') : '';
+  const after = merge(before, enabled);
+  if (before !== after) {
+    fs.mkdirSync(codexHome, { recursive: true });
+    if (fs.existsSync(file)) fs.copyFileSync(file, file + '.agent-spaces-backup-' + Date.now());
+    fs.writeFileSync(file, after);
+  }
+  return file;
+}
+function installed() {
+  try {
+    cliRunner();
+    return true;
+  } catch {
+    return false;
+  }
+}
+module.exports = { setup, merge, BLOCK, writeInstructions, installed };
