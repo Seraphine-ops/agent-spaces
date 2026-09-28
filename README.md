@@ -2,6 +2,8 @@
 
 # Agent Spaces
 
+[![CI](https://github.com/Seraphine-ops/agent-spaces/actions/workflows/ci.yml/badge.svg)](https://github.com/Seraphine-ops/agent-spaces/actions/workflows/ci.yml)
+
 I built Agent Spaces because I wanted agents to have their own home on my laptop. Their browser work interrupted mine, and their activity felt scattered across chats, tabs and apps. I wanted somewhere I could see what they were doing, which accounts they were using, and what needed my attention, separate from my personal workspace.
 
 Agent Spaces has a built-in browser that connects directly to Codex and Claude Code. Once connected, your agent uses it automatically for browser tasks. You keep prompting in the same Codex task or Claude Code session, with its conversation context intact. Crucially, agents don’t need to take over your screen or mouse: they work in their own browser tabs while you use your computer normally.

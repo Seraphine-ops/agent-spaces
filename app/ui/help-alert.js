@@ -1,1 +1,6 @@
-window.helpAlert.onShow(item=>{document.getElementById('title').textContent=item.title;document.getElementById('message').textContent=item.message;});document.getElementById('open').onclick=()=>window.helpAlert.act('open');document.getElementById('dismiss').onclick=()=>window.helpAlert.act('dismiss');
+window.helpAlert.onShow((item) => {
+  document.getElementById('title').textContent = item.title;
+  document.getElementById('message').textContent = item.message;
+});
+document.getElementById('open').onclick = () => window.helpAlert.act('open');
+document.getElementById('dismiss').onclick = () => window.helpAlert.act('dismiss');

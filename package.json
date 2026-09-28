@@ -25,7 +25,9 @@
     "dist": "electron-builder --win nsis --x64 --publish never",
     "postinstall": "node node_modules/electron/install.js",
     "test:security": "node tests/security-integration.mjs",
-    "dist:mac": "electron-builder --mac dir --publish never"
+    "dist:mac": "electron-builder --mac dir --publish never",
+    "format": "npx prettier@3 --write .",
+    "format:check": "npx prettier@3 --check ."
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.0.0",
@@ -61,7 +63,9 @@
     },
     "mac": {
       "category": "public.app-category.productivity",
-      "target": ["dir"]
+      "target": [
+        "dir"
+      ]
     },
     "nsis": {
       "oneClick": false,
